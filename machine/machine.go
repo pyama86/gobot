@@ -1,16 +1,17 @@
 package machine
 
 import (
+	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 )
 
 type Machine struct {
-	Name string
-	states map[string]*State
+	Name    string
+	states  map[string]*State
 	Current *State
 }
 
-func NewMachine(name string) *Machine{
+func NewMachine(name string) *Machine {
 	states := map[string]*State{}
 	return &Machine{Name: name, states: states}
 }
@@ -25,17 +26,25 @@ func (m *Machine) AddState(stateName string, f func(s *State)) {
 	}
 }
 
-func(m *Machine) Event(name string, callback slack.InteractionCallback) {
+func (m *Machine) Event(name string, callback slack.InteractionCallback) {
+	defer func() {
+		err := recover()
+		if err != nil {
+			logrus.Warnf("name: %s, err:", name, err)
+		}
+	}()
+
 	ev := m.Current.Events[name]
+
 	ev.Process(callback)
 	m.Current = m.states[ev.To]
 }
 
-func (m *Machine) Attachment() slack.Attachment{
+func (m *Machine) Attachment() slack.Attachment {
 	return *m.Current.attachment
 }
 
-func(m *Machine) BuildAttachment(callback slack.InteractionCallback){
+func (m *Machine) BuildAttachment(callback slack.InteractionCallback) {
 	m.Current.clearAttachment()
 	m.Current.BuildAttachmentFunc(callback)
 }
